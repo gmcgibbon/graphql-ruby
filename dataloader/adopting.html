@@ -6,7 +6,7 @@
     
       <title>GraphQL - Dataloader vs. GraphQL-Batch</title>
     
-    <link href="https://fonts.googleapis.com/css?family=Rubik:300,400" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css?family=Rubik:300,400,700" rel="stylesheet" />
     <link rel="stylesheet" href="/css/main.css">
     <link rel="icon" href="/graphql-ruby-icon.png">
   </head>
@@ -19,7 +19,7 @@
           </a>
           <a href="/getting_started">Get Started</a>
           <a href="/guides">Guides</a>
-          <a href="/api-doc/1.12.14/">API</a>
+          <a href="/api-doc/2.1.0/">API</a>
           <a href="https://tinyletter.com/graphql-ruby">Newsletter</a>
           <a href="https://github.com/rmosolgo/graphql-ruby">Source Code</a>
           <a href="https://graphql.pro">Upgrade to Pro</a>
@@ -37,27 +37,87 @@
       </div>
     </div>
     <div class="container">
-      <p class="breadcrumb">
-  <a href="/">GraphQL</a>
-  &raquo; <a href="/guides">Guides</a>
-   &raquo; <a href="/guides#dataloader-guides">Dataloader</a>
-  &raquo; Dataloader vs. GraphQL-Batch
-</p>
+      <ul class="breadcrumb">
+  <li><a href="/guides">Guides</a></li>
+  <li>
+    <select class="jump-to-select" onchange="navigateToSelected(this)">
+      
+        <option  data-target="/schema/definition.html">Schema</option>
+      
+        <option  data-target="/queries/executing_queries.html">Queries</option>
+      
+        <option  data-target="/type_definitions/objects.html">Type Definitions</option>
+      
+        <option  data-target="/authorization/overview.html">Authorization</option>
+      
+        <option  data-target="/fields/introduction.html">Fields</option>
+      
+        <option  data-target="/mutations/mutation_root.html">Mutations</option>
+      
+        <option  data-target="/errors/overview.html">Errors</option>
+      
+        <option  data-target="/pagination/overview.html">Pagination</option>
+      
+        <option  data-target="/relay/range_add.html">Relay</option>
+      
+        <option  selected data-target="/dataloader/overview.html">Dataloader</option>
+      
+        <option  data-target="/subscriptions/overview.html">Subscriptions</option>
+      
+        <option  data-target="/pro/home.html">GraphQL Pro</option>
+      
+        <option  data-target="/operation_store/overview.html">GraphQL Pro - OperationStore</option>
+      
+        <option  data-target="/defer/overview.html">GraphQL Pro - Defer</option>
+      
+        <option  data-target="/limiters/overview.html">GraphQL Enterprise - Rate Limiters</option>
+      
+        <option  data-target="/object_cache/overview.html">GraphQL Enterprise - Object Cache</option>
+      
+        <option  data-target="/changesets/overview.html">GraphQL Enterprise - Changesets</option>
+      
+        <option  data-target="/javascript_client/overview.html">JavaScript Client</option>
+      
+        <option  data-target="/language_tools/visitor.html">Language Tools</option>
+      
+        <option  data-target="/testing/overview.html">Testing</option>
+      
+        <option  data-target="/development.html">Other</option>
+      
+    </select>
+  </li>
+  <li>
+    <select class="jump-to-select" onchange="navigateToSelected(this)">
+      
+        <option  data-target="/dataloader/overview.html">Overview</option>
+      
+        <option  data-target="/dataloader/sources.html">Sources</option>
+      
+        <option  data-target="/dataloader/dataloader.html">Dataloader</option>
+      
+        <option  selected data-target="/dataloader/adopting.html">Dataloader vs. GraphQL-Batch</option>
+      
+        <option  data-target="/dataloader/testing.html">Testing</option>
+      
+        <option  data-target="/dataloader/nonblocking.html">Non-Blocking Data Loading for GraphQL</option>
+      
+    </select>
+  </li>
+</ul>
 
-  <div class="experimental-header">
-    <p>
-      <strong>⚠ Experimental ⚠</strong>
-    </p>
-    <p>
-      This feature may get big changes in future releases.
-      Check the <a href="https://github.com/rmosolgo/graphql-ruby/blob/master/CHANGELOG.md">changelog</a> for update notes.
-    </p>
-  </div>
 
 
 <h1 class="guide-header">Dataloader vs. GraphQL-Batch</h1>
+<div class="guide-table-of-contents"><div class="table-of-contents">
+  <h3 class="contents-header">Contents</h3>
+  <ol class='contents-list'><li class='contents-entry'><a href='#comparison-fetching-a-single-object'>Comparison: Fetching a single object
+</a></li><li class='contents-entry'><a href='#comparison-fetching-objects-in-sequence-dependent'>Comparison: Fetching objects in sequence (dependent)
+</a></li><li class='contents-entry'><a href='#comparison-fetching-objects-concurrently-independent'>Comparison: Fetching objects concurrently (independent)
+</a></li></ol>
+</div>
+</div>
 <div class="guide-container">
-  <p><a href="/api-doc/1.12.14/GraphQL/Dataloader" target="_blank" title="API docs for GraphQL::Dataloader"><code>GraphQL::Dataloader</code></a> solves the same problem as <a href="https://github.com/shopify/graphql-batch"><code class="language-plaintext highlighter-rouge">GraphQL::Batch</code></a>. There are a few major differences between the modules:</p>
+  <p><a href="/api-doc/2.1.0/GraphQL/Dataloader" target="_blank" title="API docs for GraphQL::Dataloader"><code>GraphQL::Dataloader</code></a> solves the same problem as <a href="https://github.com/shopify/graphql-batch"><code class="language-plaintext highlighter-rouge">GraphQL::Batch</code></a>. There are a few major differences between the modules:</p>
 
 <ul>
   <li><strong>Concurrency Primitive:</strong> GraphQL-Batch uses <code class="language-plaintext highlighter-rouge">Promise</code>s from <a href="https://github.com/lgierth/promise.rb"><code class="language-plaintext highlighter-rouge">promise.rb</code></a>; GraphQL::Dataloader uses Ruby’s <a href="https://ruby-doc.org/core-3.0.0/Fiber.html"><code class="language-plaintext highlighter-rouge">Fiber</code> API</a>. These primitives dictate how batch loading code is written (see below for comparisons).</li>
@@ -65,7 +125,7 @@
   <li><strong>Scope:</strong> It’s not currently possible to use <code class="language-plaintext highlighter-rouge">GraphQL::Dataloader</code> <em>outside</em> GraphQL.</li>
 </ul>
 
-<p>The incentive in writing <code class="language-plaintext highlighter-rouge">GraphQL::Dataloader</code> was to leverage <code class="language-plaintext highlighter-rouge">Fiber</code>’s ability to <em>transparently</em> pause and resume work, which removes the need for <code class="language-plaintext highlighter-rouge">Promise</code>s (and removes the resulting complexity in the code). Additionally, <code class="language-plaintext highlighter-rouge">GraphQL::Dataloader</code> shoulde <em>eventually</em> support Ruby 3.0’s <code class="language-plaintext highlighter-rouge">Fiber.scheduler</code> API, which runs I/O in the background by default.</p>
+<p>The incentive in writing <code class="language-plaintext highlighter-rouge">GraphQL::Dataloader</code> was to leverage <code class="language-plaintext highlighter-rouge">Fiber</code>’s ability to <em>transparently</em> pause and resume work, which removes the need for <code class="language-plaintext highlighter-rouge">Promise</code>s (and removes the resulting complexity in the code). Additionally, <code class="language-plaintext highlighter-rouge">GraphQL::Dataloader</code> should <em>eventually</em> support Ruby 3.0’s <code class="language-plaintext highlighter-rouge">Fiber.scheduler</code> API, which runs I/O in the background by default.</p>
 
 <h2 id="comparison-fetching-a-single-object">Comparison: Fetching a single object</h2>
 
@@ -106,7 +166,7 @@
     <p>That call returns a <code class="language-plaintext highlighter-rouge">Promise</code>, which is stored by GraphQL-Ruby, and finally <code class="language-plaintext highlighter-rouge">.sync</code>ed.</p>
   </li>
   <li>
-    <p>With <strong>GraphQL-Dataloader</strong>, <code class="language-plaintext highlighter-rouge">.load(...)</code> returns the requested object (after a potential <code class="language-plaintext highlighter-rouge">Fiber</code> pause), so other method calls are necessary:</p>
+    <p>With <strong>GraphQL-Dataloader</strong>, <code class="language-plaintext highlighter-rouge">.load(...)</code> returns the requested object (after a potential <code class="language-plaintext highlighter-rouge">Fiber</code> pause), so no other method calls are necessary:</p>
 
     <div class="language-ruby highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">record</span> <span class="o">=</span> <span class="n">dataloader</span><span class="p">.</span><span class="nf">with</span><span class="p">(</span><span class="no">Sources</span><span class="o">::</span><span class="no">Record</span><span class="p">).</span><span class="nf">load</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
 <span class="n">dataloader</span><span class="p">.</span><span class="nf">with</span><span class="p">(</span><span class="no">Sources</span><span class="o">::</span><span class="no">OtherRecord</span><span class="p">).</span><span class="nf">load</span><span class="p">(</span><span class="n">record</span><span class="p">.</span><span class="nf">other_record_id</span><span class="p">)</span>
@@ -177,6 +237,10 @@
       header.textContent = "";
       header.appendChild(headerLink);
     }
+  }
+  function navigateToSelected(selectElement) {
+    var nextPage = selectElement.selectedOptions[0].dataset["target"]
+    document.location = nextPage
   }
 </script>
 

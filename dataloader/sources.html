@@ -6,7 +6,7 @@
     
       <title>GraphQL - Sources</title>
     
-    <link href="https://fonts.googleapis.com/css?family=Rubik:300,400" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css?family=Rubik:300,400,700" rel="stylesheet" />
     <link rel="stylesheet" href="/css/main.css">
     <link rel="icon" href="/graphql-ruby-icon.png">
   </head>
@@ -19,7 +19,7 @@
           </a>
           <a href="/getting_started">Get Started</a>
           <a href="/guides">Guides</a>
-          <a href="/api-doc/1.12.14/">API</a>
+          <a href="/api-doc/2.1.0/">API</a>
           <a href="https://tinyletter.com/graphql-ruby">Newsletter</a>
           <a href="https://github.com/rmosolgo/graphql-ruby">Source Code</a>
           <a href="https://graphql.pro">Upgrade to Pro</a>
@@ -37,31 +37,95 @@
       </div>
     </div>
     <div class="container">
-      <p class="breadcrumb">
-  <a href="/">GraphQL</a>
-  &raquo; <a href="/guides">Guides</a>
-   &raquo; <a href="/guides#dataloader-guides">Dataloader</a>
-  &raquo; Sources
-</p>
+      <ul class="breadcrumb">
+  <li><a href="/guides">Guides</a></li>
+  <li>
+    <select class="jump-to-select" onchange="navigateToSelected(this)">
+      
+        <option  data-target="/schema/definition.html">Schema</option>
+      
+        <option  data-target="/queries/executing_queries.html">Queries</option>
+      
+        <option  data-target="/type_definitions/objects.html">Type Definitions</option>
+      
+        <option  data-target="/authorization/overview.html">Authorization</option>
+      
+        <option  data-target="/fields/introduction.html">Fields</option>
+      
+        <option  data-target="/mutations/mutation_root.html">Mutations</option>
+      
+        <option  data-target="/errors/overview.html">Errors</option>
+      
+        <option  data-target="/pagination/overview.html">Pagination</option>
+      
+        <option  data-target="/relay/range_add.html">Relay</option>
+      
+        <option  selected data-target="/dataloader/overview.html">Dataloader</option>
+      
+        <option  data-target="/subscriptions/overview.html">Subscriptions</option>
+      
+        <option  data-target="/pro/home.html">GraphQL Pro</option>
+      
+        <option  data-target="/operation_store/overview.html">GraphQL Pro - OperationStore</option>
+      
+        <option  data-target="/defer/overview.html">GraphQL Pro - Defer</option>
+      
+        <option  data-target="/limiters/overview.html">GraphQL Enterprise - Rate Limiters</option>
+      
+        <option  data-target="/object_cache/overview.html">GraphQL Enterprise - Object Cache</option>
+      
+        <option  data-target="/changesets/overview.html">GraphQL Enterprise - Changesets</option>
+      
+        <option  data-target="/javascript_client/overview.html">JavaScript Client</option>
+      
+        <option  data-target="/language_tools/visitor.html">Language Tools</option>
+      
+        <option  data-target="/testing/overview.html">Testing</option>
+      
+        <option  data-target="/development.html">Other</option>
+      
+    </select>
+  </li>
+  <li>
+    <select class="jump-to-select" onchange="navigateToSelected(this)">
+      
+        <option  data-target="/dataloader/overview.html">Overview</option>
+      
+        <option  selected data-target="/dataloader/sources.html">Sources</option>
+      
+        <option  data-target="/dataloader/dataloader.html">Dataloader</option>
+      
+        <option  data-target="/dataloader/adopting.html">Dataloader vs. GraphQL-Batch</option>
+      
+        <option  data-target="/dataloader/testing.html">Testing</option>
+      
+        <option  data-target="/dataloader/nonblocking.html">Non-Blocking Data Loading for GraphQL</option>
+      
+    </select>
+  </li>
+</ul>
 
-  <div class="experimental-header">
-    <p>
-      <strong>⚠ Experimental ⚠</strong>
-    </p>
-    <p>
-      This feature may get big changes in future releases.
-      Check the <a href="https://github.com/rmosolgo/graphql-ruby/blob/master/CHANGELOG.md">changelog</a> for update notes.
-    </p>
-  </div>
 
 
 <h1 class="guide-header">Sources</h1>
+<div class="guide-table-of-contents"><div class="table-of-contents">
+  <h3 class="contents-header">Contents</h3>
+  <ol class='contents-list'><li class='contents-entry'><a href='#source-concepts'>Source Concepts
+</a></li><li class='contents-entry'><a href='#example-loading-strings-from-redis-by-key'>Example: Loading Strings from Redis by Key
+</a></li><li class='contents-entry'><a href='#example-loading-activerecord-objects-by-id'>Example: Loading ActiveRecord Objects by ID
+</a></li><li class='contents-entry'><a href='#example-batched-calculations'>Example: Batched Calculations
+</a></li><li class='contents-entry'><a href='#example-loading-in-a-background-thread'>Example: Loading in a background thread
+</a></li><li class='contents-entry'><a href='#filling-the-dataloader-cache'>Filling the Dataloader Cache
+</a></li><li class='contents-entry'><a href='#de-duplicating-equivalent-objects'>De-duplicating equivalent objects
+</a></li></ol>
+</div>
+</div>
 <div class="guide-container">
-  <p><em>Sources</em> are what <a href="/api-doc/1.12.14/GraphQL/Dataloader" target="_blank" title="API docs for GraphQL::Dataloader"><code>GraphQL::Dataloader</code></a> uses to fetch data from external services.</p>
+  <p><em>Sources</em> are what <a href="/api-doc/2.1.0/GraphQL/Dataloader" target="_blank" title="API docs for GraphQL::Dataloader"><code>GraphQL::Dataloader</code></a> uses to fetch data from external services.</p>
 
 <h2 id="source-concepts">Source Concepts</h2>
 
-<p>Sources are classes that inherit from <code class="language-plaintext highlighter-rouge">GraphQL::Dataloader::Source</code>. A Source <em>must</em> implement <code class="language-plaintext highlighter-rouge">def fetch(keys)</code> to return a list of objects, one for each of the given keys. A source <em>may</em> implement <code class="language-plaintext highlighter-rouge">def initialize(dataloader, ...)</code> to accept other batching parameters.</p>
+<p>Sources are classes that inherit from <code class="language-plaintext highlighter-rouge">GraphQL::Dataloader::Source</code>. A Source <em>must</em> implement <code class="language-plaintext highlighter-rouge">def fetch(keys)</code> to return a list of objects, one for each of the given keys. A source <em>may</em> implement <code class="language-plaintext highlighter-rouge">def initialize(...)</code> to accept other batching parameters.</p>
 
 <p>Sources will receive two kinds of inputs from <code class="language-plaintext highlighter-rouge">GraphQL::Dataloader</code>:</p>
 
@@ -74,11 +138,13 @@
     <p>Under the hood, each Source instance maintains a <code class="language-plaintext highlighter-rouge">key =&gt; object</code> cache.</p>
   </li>
   <li>
-    <p><em>batch parameters</em>, which are the basis of batched groups. For example, if you’re loading records from different database tables, the the table name would be a batch parameter.</p>
+    <p><em>batch parameters</em>, which are the basis of batched groups. For example, if you’re loading records from different database tables, the table name would be a batch parameter.</p>
 
-    <p>Batch parameters are given to <code class="language-plaintext highlighter-rouge">dataloader.with(source_class, *batch_parameters)</code>, and the default is <em>no batch parameters</em>. When you define a source, you should add the batch parameters to <code class="language-plaintext highlighter-rouge">def initialize(dataloader, ...)</code> and store them in instance variables.</p>
+    <p>Batch parameters are given to <code class="language-plaintext highlighter-rouge">dataloader.with(source_class, *batch_parameters)</code>, and the default is <em>no batch parameters</em>. When you define a source, you should add the batch parameters to <code class="language-plaintext highlighter-rouge">def initialize(...)</code> and store them in instance variables.</p>
 
     <p>(<code class="language-plaintext highlighter-rouge">dataloader.with(source_class, *batch_parameters)</code> returns an instance of <code class="language-plaintext highlighter-rouge">source_class</code> with the given batch parameters – but it might be an instance which was cached by <code class="language-plaintext highlighter-rouge">dataloader</code>.)</p>
+
+    <p>Additionally, batch parameters are used to de-duplicate Source initializations during a query run. <code class="language-plaintext highlighter-rouge">.with(...)</code> calls that have the same batch parameters will use the same Source instance under the hood. To customize how Sources are de-duplicated, see <a href="/api-doc/2.1.0/GraphQL/Dataloader/Source#batch_key_for-class_method" target="_blank" title="API docs for GraphQL::Dataloader::Source.batch_key_for"><code>GraphQL::Dataloader::Source.batch_key_for</code></a>.</p>
   </li>
 </ul>
 
@@ -182,6 +248,44 @@
 
 <p>Ruby 3.0 added built-in support for yielding Fibers that make I/O calls – hopefully a future GraphQL-Ruby version will work with that!</p>
 
+<h2 id="filling-the-dataloader-cache">Filling the Dataloader Cache</h2>
+
+<p>If you load records from the database, you can use them to populate a source’s cache by using <a href="/api-doc/2.1.0/GraphQL/Dataloader/Source#merge-instance_method" target="_blank" title="API docs for GraphQL::Dataloader::Source#merge"><code>Dataloader::Source#merge</code></a>. For example:</p>
+
+<div class="language-ruby highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c1"># Build a `{ key =&gt; value }` map to populate the cache</span>
+<span class="n">comments_by_id</span> <span class="o">=</span> <span class="n">post</span><span class="p">.</span><span class="nf">comments</span><span class="p">.</span><span class="nf">each_with_object</span><span class="p">({})</span> <span class="p">{</span> <span class="o">|</span><span class="n">comment</span><span class="p">,</span> <span class="nb">hash</span><span class="o">|</span> <span class="nb">hash</span><span class="p">[</span><span class="n">comment</span><span class="p">.</span><span class="nf">id</span><span class="p">]</span> <span class="o">=</span> <span class="n">comment</span> <span class="p">}</span>
+<span class="c1"># Merge the map into the source's cache</span>
+<span class="n">dataloader</span><span class="p">.</span><span class="nf">with</span><span class="p">(</span><span class="no">Sources</span><span class="o">::</span><span class="no">ActiveRecordObject</span><span class="p">,</span> <span class="no">Comment</span><span class="p">).</span><span class="nf">merge</span><span class="p">(</span><span class="n">comments_by_id</span><span class="p">)</span>
+</code></pre></div></div>
+
+<p>After that, any calls to <code class="language-plaintext highlighter-rouge">.load(id)</code> will use those already-loaded records if they’re available.</p>
+
+<h2 id="de-duplicating-equivalent-objects">De-duplicating equivalent objects</h2>
+
+<p>Sometimes, <em>different</em> objects in the application should load the same object from <code class="language-plaintext highlighter-rouge">fetch</code>. You can customize this behavior by implementing <code class="language-plaintext highlighter-rouge">def result_key_for(key)</code> in your application. For example, to map records from your ORM to their database ID:</p>
+
+<div class="language-ruby highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c1"># Load the `created_by` person for a record from our database</span>
+<span class="k">class</span> <span class="nc">CreatedBySource</span> <span class="o">&lt;</span> <span class="no">GraphQL</span><span class="o">::</span><span class="no">Dataloader</span><span class="o">::</span><span class="no">Source</span>
+  <span class="k">def</span> <span class="nf">result_key_for</span><span class="p">(</span><span class="n">key</span><span class="p">)</span>
+    <span class="n">key</span><span class="p">.</span><span class="nf">id</span> <span class="c1"># Use the record's ID to deduplicate different `.load` calls</span>
+  <span class="k">end</span>
+
+  <span class="c1"># Fetch a `person` for each of `records`, based on their created_by_id</span>
+  <span class="k">def</span> <span class="nf">fetch</span><span class="p">(</span><span class="n">records</span><span class="p">)</span>
+    <span class="no">PersonService</span><span class="p">.</span><span class="nf">find_each</span><span class="p">(</span><span class="n">records</span><span class="p">.</span><span class="nf">map</span><span class="p">(</span><span class="o">&amp;</span><span class="ss">:created_by_id</span><span class="p">))</span>
+  <span class="k">end</span>
+<span class="k">end</span>
+</code></pre></div></div>
+
+<p>In this case, <code class="language-plaintext highlighter-rouge">records</code> will include the <em>first</em> object for each unique <code class="language-plaintext highlighter-rouge">record.id</code> – subsequent records with the same <code class="language-plaintext highlighter-rouge">.id</code> will be assumed to be duplicates. Under the hood, the <code class="language-plaintext highlighter-rouge">Source</code> will cache the result based on the record’s <code class="language-plaintext highlighter-rouge">id</code>.</p>
+
+<p>Alternatively, you could use this to make the <code class="language-plaintext highlighter-rouge">Source</code> retain each incoming object, even when they would <em>otherwise</em> be treated as duplicates. (This would come in handy when you need <code class="language-plaintext highlighter-rouge">def fetch</code> to mutate each object). For example, to treat <em>every</em> incoming object as distinct:</p>
+
+<div class="language-ruby highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">def</span> <span class="nf">result_key_for</span><span class="p">(</span><span class="n">record</span><span class="p">)</span>
+  <span class="n">record</span><span class="p">.</span><span class="nf">object_id</span> <span class="c1"># even if the records are equivalent, handle each distinct Ruby object separately</span>
+<span class="k">end</span>
+</code></pre></div></div>
+
 </div>
 <p class="guide-footer">
   Suggestion, improvement, or correction?
@@ -203,6 +307,10 @@
       header.textContent = "";
       header.appendChild(headerLink);
     }
+  }
+  function navigateToSelected(selectElement) {
+    var nextPage = selectElement.selectedOptions[0].dataset["target"]
+    document.location = nextPage
   }
 </script>
 
