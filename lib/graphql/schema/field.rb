@@ -34,8 +34,8 @@ module GraphQL
 
       # @return [Symbol] The method on the type to look up
       def resolver_method
-        if @resolver_class
-          @resolver_class.resolver_method
+        if resolver_class
+          resolver_class.resolver_method
         else
           @resolver_method
         end
@@ -60,7 +60,7 @@ module GraphQL
 
       # @return [Class, nil] The {Schema::Resolver} this field was derived from, if there is one
       def resolver
-        @resolver_class
+        resolver_class
       end
 
       # @return [Boolean] Is this field a predefined introspection field?
@@ -79,7 +79,7 @@ module GraphQL
 
       # @return [String, nil]
       def subscription_scope
-        @subscription_scope || (@resolver_class.respond_to?(:subscription_scope) ? @resolver_class.subscription_scope : nil)
+        @subscription_scope || (resolver_class.respond_to?(:subscription_scope) ? resolver_class.subscription_scope : nil)
       end
       attr_writer :subscription_scope
 
@@ -132,8 +132,8 @@ module GraphQL
           # Provide default based on type name
           return_type_name = if @return_type_expr
             Member::BuildType.to_type_name(@return_type_expr)
-          elsif @resolver_class && @resolver_class.type
-            Member::BuildType.to_type_name(@resolver_class.type)
+          elsif resolver_class && resolver_class.type
+            Member::BuildType.to_type_name(resolver_class.type)
           else
             # As a last ditch, try to force loading the return type:
             type.unwrap.name
@@ -154,8 +154,8 @@ module GraphQL
           @return_type_expr.is_a?(Array) ||
             (@return_type_expr.is_a?(String) && @return_type_expr.include?("[")) ||
             connection?
-        elsif @resolver_class
-          resolver_type = @resolver_class.type_expr
+        elsif resolver_class
+          resolver_type = resolver_class.type_expr
           resolver_type.is_a?(Array) ||
             (resolver_type.is_a?(String) && resolver_type.include?("[")) ||
             connection?
@@ -282,7 +282,7 @@ module GraphQL
         @introspection = introspection
         @extras = extras
         @broadcastable = broadcastable
-        @resolver_class = resolver_class
+        @resolver_class_expr = resolver_class
         @scope = scope
         @trace = trace
         @relay_node_field = relay_node_field
@@ -309,25 +309,11 @@ module GraphQL
 
         @extensions = EMPTY_ARRAY
         @call_after_define = false
-        # This should run before connection extension,
-        # but should it run after the definition block?
-        if scoped?
-          self.extension(ScopeExtension)
-        end
-
-        # The problem with putting this after the definition_block
-        # is that it would override arguments
-        if connection? && connection_extension
-          self.extension(connection_extension)
-        end
+        @connection_extension = connection_extension
 
         # Do this last so we have as much context as possible when initializing them:
         if extensions.any?
           self.extensions(extensions)
-        end
-
-        if resolver_class && resolver_class.extensions.any?
-          self.extensions(resolver_class.extensions)
         end
 
         if directives.any?
@@ -360,8 +346,8 @@ module GraphQL
       def broadcastable?
         if !NOT_CONFIGURED.equal?(@broadcastable)
           @broadcastable
-        elsif @resolver_class
-          @resolver_class.broadcastable?
+        elsif resolver_class
+          resolver_class.broadcastable?
         else
           nil
         end
@@ -374,8 +360,8 @@ module GraphQL
           @description = text
         elsif !NOT_CONFIGURED.equal?(@description)
           @description
-        elsif @resolver_class
-          @resolver_class.description
+        elsif resolver_class
+          resolver_class.description
         else
           nil
         end
@@ -442,8 +428,8 @@ module GraphQL
         if new_extras.nil?
           # Read the value
           field_extras = @extras
-          if @resolver_class && @resolver_class.extras.any?
-            field_extras + @resolver_class.extras
+          if resolver_class && resolver_class.extras.any?
+            field_extras + resolver_class.extras
           else
             field_extras
           end
@@ -518,8 +504,8 @@ module GraphQL
         when Numeric
           @complexity = new_complexity
         when nil
-          if @resolver_class
-            @complexity || @resolver_class.complexity || 1
+          if resolver_class
+            @complexity || resolver_class.complexity || 1
           else
             @complexity || 1
           end
@@ -530,15 +516,15 @@ module GraphQL
 
       # @return [Boolean] True if this field's {#max_page_size} should override the schema default.
       def has_max_page_size?
-        !NOT_CONFIGURED.equal?(@max_page_size) || (@resolver_class && @resolver_class.has_max_page_size?)
+        !NOT_CONFIGURED.equal?(@max_page_size) || (resolver_class && resolver_class.has_max_page_size?)
       end
 
       # @return [Integer, nil] Applied to connections if {#has_max_page_size?}
       def max_page_size
         if !NOT_CONFIGURED.equal?(@max_page_size)
           @max_page_size
-        elsif @resolver_class && @resolver_class.has_max_page_size?
-          @resolver_class.max_page_size
+        elsif resolver_class && resolver_class.has_max_page_size?
+          resolver_class.max_page_size
         else
           nil
         end
@@ -546,15 +532,15 @@ module GraphQL
 
       # @return [Boolean] True if this field's {#default_page_size} should override the schema default.
       def has_default_page_size?
-        !NOT_CONFIGURED.equal?(@default_page_size) || (@resolver_class && @resolver_class.has_default_page_size?)
+        !NOT_CONFIGURED.equal?(@default_page_size) || (resolver_class && resolver_class.has_default_page_size?)
       end
 
       # @return [Integer, nil] Applied to connections if {#has_default_page_size?}
       def default_page_size
         if !NOT_CONFIGURED.equal?(@default_page_size)
           @default_page_size
-        elsif @resolver_class && @resolver_class.has_default_page_size?
-          @resolver_class.default_page_size
+        elsif resolver_class && resolver_class.has_default_page_size?
+          resolver_class.default_page_size
         else
           nil
         end
@@ -564,12 +550,12 @@ module GraphQL
       attr_writer :type
 
       def type
-        if @resolver_class
-          return_type = @return_type_expr || @resolver_class.type_expr
+        if resolver_class
+          return_type = @return_type_expr || resolver_class.type_expr
           if return_type.nil?
             raise MissingReturnTypeError, "Can't determine the return type for #{self.path} (it has `resolver: #{@resolver_class}`, perhaps that class is missing a `type ...` declaration, or perhaps its type causes a cyclical loading issue)"
           end
-          nullable = @return_type_null.nil? ? @resolver_class.null : @return_type_null
+          nullable = @return_type_null.nil? ? resolver_class.null : @return_type_null
           Member::BuildType.parse_type(return_type, null: nullable)
         else
           @type ||= Member::BuildType.parse_type(@return_type_expr, null: @return_type_null)
@@ -581,18 +567,38 @@ module GraphQL
         raise MissingReturnTypeError, "Failed to build return type for #{@owner.graphql_name}.#{name} from #{@return_type_expr.inspect}: (#{err.class}) #{err.message}", err.backtrace
       end
 
+      def resolver_class
+        if @resolver_class_expr
+          @resolver_class ||= Member::BuildType.parse_type(@resolver_class_expr, null: true).tap do |resolver_class|
+            self.class.extensions(resolver_class.extensions)
+
+            # This should run before connection extension,
+            # but should it run after the definition block?
+            if scoped?
+              self.extension(ScopeExtension)
+            end
+
+            # The problem with putting this after the definition_block
+            # is that it would override arguments
+            if connection? && @connection_extension
+              self.extension(@connection_extension)
+            end
+          end
+        end
+      end
+
       def visible?(context)
-        if @resolver_class
-          @resolver_class.visible?(context)
+        if resolver_class
+          resolver_class.visible?(context)
         else
           true
         end
       end
 
       def authorized?(object, args, context)
-        if @resolver_class
+        if resolver_class
           # The resolver _instance_ will check itself during `resolve()`
-          @resolver_class.authorized?(object, context)
+          resolver_class.authorized?(object, context)
         else
           if args.size > 0
             if (arg_values = context[:current_arguments])
@@ -651,11 +657,11 @@ module GraphQL
           if is_authorized
             with_extensions(object, args, query_ctx) do |obj, ruby_kwargs|
               method_args = ruby_kwargs
-              if @resolver_class
+              if resolver_class
                 if obj.is_a?(GraphQL::Schema::Object)
                   obj = obj.object
                 end
-                obj = @resolver_class.new(object: obj, context: query_ctx, field: self)
+                obj = resolver_class.new(object: obj, context: query_ctx, field: self)
               end
 
               inner_object = obj.object
