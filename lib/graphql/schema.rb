@@ -412,8 +412,16 @@ module GraphQL
           if @query_object
             raise GraphQL::Error, "Second definition of `query(...)` (#{new_query_object.inspect}) is invalid, already configured with #{@query_object.inspect}"
           else
-            @query_object = new_query_object
-            add_type_and_traverse(new_query_object, root: true)
+            @query_object = if new_query_object.is_a?(Proc)
+              proc do
+                type = Member::BuildType.parse_type(new_query_object, null: false)
+                add_type_and_traverse(type, root: true)
+                type
+              end
+            else
+              add_type_and_traverse(new_query_object, root: true)
+              new_query_object
+            end
             nil
           end
         else
@@ -426,8 +434,17 @@ module GraphQL
           if @mutation_object
             raise GraphQL::Error, "Second definition of `mutation(...)` (#{new_mutation_object.inspect}) is invalid, already configured with #{@mutation_object.inspect}"
           else
-            @mutation_object = new_mutation_object
-            add_type_and_traverse(new_mutation_object, root: true)
+
+            @mutation_object = if new_mutation_object.is_a?(Proc)
+              proc do
+                type = Member::BuildType.parse_type(new_mutation_object, null: false)
+                add_type_and_traverse(type, root: true)
+                type
+              end
+            else
+              add_type_and_traverse(new_mutation_object, root: true)
+              new_mutation_object
+            end
             nil
           end
         else
