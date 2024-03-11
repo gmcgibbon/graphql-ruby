@@ -812,8 +812,10 @@ module GraphQL
       def orphan_types(*new_orphan_types)
         if new_orphan_types.any?
           new_orphan_types = new_orphan_types.flatten
-          add_type_and_traverse(new_orphan_types, root: false)
-          own_orphan_types.concat(new_orphan_types.flatten)
+          new_orphan_types.map do |type|
+            add_type_and_traverse(type, root: false)
+            own_orphan_types << type
+          end
         end
 
         inherited_ot = find_inherited_value(:orphan_types, nil)
