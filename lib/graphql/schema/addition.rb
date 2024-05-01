@@ -2,7 +2,7 @@
 
 module GraphQL
   class Schema
-    class Addition
+    class ShallowAddition
       attr_reader :directives, :possible_types, :types, :union_memberships, :references, :arguments_with_default_values
 
       def initialize(schema:, own_types:, new_types:)
@@ -148,55 +148,38 @@ module GraphQL
       end
 
       def add_type(type, owner:, late_types:, path:)
-        if type.is_a?(String) || type.is_a?(GraphQL::Schema::LateBoundType)
-          late_types << [owner, type]
-          return
-        end
-
-        if owner.is_a?(Class) && owner < GraphQL::Schema::Union
-          um = @union_memberships[type.graphql_name] ||= []
-          um << owner
-        end
-
-        if (prev_type = get_local_type(type.graphql_name)) && (prev_type == type || (prev_type.is_a?(Array) && prev_type.include?(type)))
-          # No need to re-visit
-        elsif type.is_a?(Class) && type < GraphQL::Schema::Directive
+        if type.is_a?(Class) && type < GraphQL::Schema::Directive
           @directives << type
           type.all_argument_definitions.each do |arg|
             arg_type = arg.type.unwrap
             references_to(arg_type, from: arg)
             path.push(arg.graphql_name)
-            add_type(arg_type, owner: arg, late_types: late_types, path: path)
+            add_shallow_type(arg_type, owner: arg, late_types: late_types)
             path.pop
             if arg.default_value?
               @arguments_with_default_values << arg
             end
           end
         else
-          prev_type = @types[type.graphql_name]
-          if prev_type.nil?
-            @types[type.graphql_name] = type
-          elsif prev_type.is_a?(Array)
-            prev_type << type
-          else
-            @types[type.graphql_name] = [prev_type, type]
+          if !((prev_type = get_local_type(type.graphql_name)) && (prev_type == type || (prev_type.is_a?(Array) && prev_type.include?(type))))
+            add_shallow_type(type, owner: owner, late_types: late_types)
+            add_directives_from(type)
           end
 
-          add_directives_from(type)
           if type.kind.fields?
             type.all_field_definitions.each do |field|
               name = field.graphql_name
               field_type = field.type.unwrap
               references_to(field_type, from: field)
               path.push(name)
-              add_type(field_type, owner: field, late_types: late_types, path: path)
+              add_shallow_type(field_type, owner: field, late_types: late_types)
               add_directives_from(field)
               field.all_argument_definitions.each do |arg|
                 add_directives_from(arg)
                 arg_type = arg.type.unwrap
                 references_to(arg_type, from: arg)
                 path.push(arg.graphql_name)
-                add_type(arg_type, owner: arg, late_types: late_types, path: path)
+                add_shallow_type(arg_type, owner: arg, late_types: late_types)
                 path.pop
                 if arg.default_value?
                   @arguments_with_default_values << arg
@@ -211,7 +194,7 @@ module GraphQL
               arg_type = arg.type.unwrap
               references_to(arg_type, from: arg)
               path.push(arg.graphql_name)
-              add_type(arg_type, owner: arg, late_types: late_types, path: path)
+              add_shallow_type(arg_type, owner: arg, late_types: late_types)
               path.pop
               if arg.default_value?
                 @arguments_with_default_values << arg
@@ -222,14 +205,14 @@ module GraphQL
             @possible_types[type.graphql_name] = type.all_possible_types
             path.push("possible_types")
             type.all_possible_types.each do |t|
-              add_type(t, owner: type, late_types: late_types, path: path)
+              add_shallow_type(t, owner: type, late_types: late_types)
             end
             path.pop
           end
           if type.kind.interface?
             path.push("orphan_types")
             type.orphan_types.each do |t|
-              add_type(t, owner: type, late_types: late_types, path: path)
+              add_shallow_type(t, owner: type, late_types: late_types)
             end
             path.pop
           end
@@ -254,7 +237,7 @@ module GraphQL
               else
                 raise ArgumentError, "Invariant: unexpected type membership for #{type.graphql_name}: #{interface_type_membership.class} (#{interface_type_membership.inspect})"
               end
-              add_type(interface_type, owner: type, late_types: late_types, path: path)
+              add_shallow_type(interface_type, owner: type, late_types: late_types)
             end
             path.pop
           end
@@ -264,6 +247,27 @@ module GraphQL
               add_directives_from(value_definition)
             end
           end
+        end
+      end
+
+      def add_shallow_type(type, owner:, late_types:)
+        if type.is_a?(String) || type.is_a?(GraphQL::Schema::LateBoundType)
+          late_types << [owner, type]
+          return
+        end
+
+        if owner.is_a?(Class) && owner < GraphQL::Schema::Union
+          um = @union_memberships[type.graphql_name] ||= []
+          um << owner
+        end
+
+        prev_type = @types[type.graphql_name]
+        if prev_type.nil?
+          @types[type.graphql_name] = type
+        elsif prev_type.is_a?(Array)
+          prev_type << type
+        else
+          @types[type.graphql_name] = [prev_type, type]
         end
       end
     end
