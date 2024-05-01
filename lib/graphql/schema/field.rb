@@ -219,7 +219,16 @@ module GraphQL
       # @param method_conflict_warning [Boolean] If false, skip the warning if this field's method conflicts with a built-in method
       # @param validates [Array<Hash>] Configurations for validating this field
       # @param fallback_value [Object] A fallback value if the method is not defined
-      def initialize(type: nil, name: nil, owner: nil, null: nil, description: NOT_CONFIGURED, deprecation_reason: nil, method: nil, hash_key: nil, dig: nil, resolver_method: nil, connection: nil, max_page_size: NOT_CONFIGURED, default_page_size: NOT_CONFIGURED, scope: nil, introspection: false, camelize: true, trace: nil, complexity: nil, ast_node: nil, extras: EMPTY_ARRAY, extensions: EMPTY_ARRAY, connection_extension: self.class.connection_extension, resolver_class: nil, subscription_scope: nil, relay_node_field: false, relay_nodes_field: false, method_conflict_warning: true, broadcastable: NOT_CONFIGURED, arguments: EMPTY_HASH, directives: EMPTY_HASH, validates: EMPTY_ARRAY, fallback_value: NOT_CONFIGURED, dynamic_introspection: false, &definition_block)
+      def initialize(type: nil, name: nil, owner: nil, null: nil, description: NOT_CONFIGURED,
+                    deprecation_reason: nil, method: nil, hash_key: nil, dig: nil, resolver_method: nil,
+                    connection: nil, max_page_size: NOT_CONFIGURED, default_page_size: NOT_CONFIGURED,
+                    scope: nil, introspection: false, camelize: true, trace: nil, complexity: nil,
+                    ast_node: nil, extras: EMPTY_ARRAY, extensions: EMPTY_ARRAY,
+                    connection_extension: self.class.connection_extension, resolver_class: nil,
+                    subscription_scope: nil, relay_node_field: false, relay_nodes_field: false,
+                    method_conflict_warning: true, broadcastable: NOT_CONFIGURED, arguments: EMPTY_HASH,
+                    directives: EMPTY_HASH, validates: EMPTY_ARRAY, fallback_value: NOT_CONFIGURED,
+                    dynamic_introspection: false, &definition_block)
         if name.nil?
           raise ArgumentError, "missing first `name` argument or keyword `name:`"
         end
@@ -309,25 +318,10 @@ module GraphQL
 
         @extensions = EMPTY_ARRAY
         @call_after_define = false
-        # This should run before connection extension,
-        # but should it run after the definition block?
-        if scoped?
-          self.extension(ScopeExtension)
-        end
-
-        # The problem with putting this after the definition_block
-        # is that it would override arguments
-        if connection? && connection_extension
-          self.extension(connection_extension)
-        end
 
         # Do this last so we have as much context as possible when initializing them:
         if extensions.any?
           self.extensions(extensions)
-        end
-
-        if resolver_class && resolver_class.extensions.any?
-          self.extensions(resolver_class.extensions)
         end
 
         if directives.any?
@@ -346,6 +340,24 @@ module GraphQL
           else
             instance_eval(&definition_block)
           end
+        end
+      end
+
+      def finish_initialize
+        if @resolver_class && @resolver_class.extensions.any?
+          self.extensions(@resolver_class.extensions)
+        end
+
+        # This should run before connection extension,
+        # but should it run after the definition block?
+        if scoped?
+          self.extension(ScopeExtension)
+        end
+
+        # The problem with putting this after the definition_block
+        # is that it would override arguments
+        if connection? && @connection_extension
+          self.extension(connection_extension)
         end
 
         self.extensions.each(&:after_define_apply)
@@ -566,15 +578,17 @@ module GraphQL
       attr_writer :type
 
       def type
-        if @resolver_class
-          return_type = @return_type_expr || @resolver_class.type_expr
-          if return_type.nil?
-            raise MissingReturnTypeError, "Can't determine the return type for #{self.path} (it has `resolver: #{@resolver_class}`, perhaps that class is missing a `type ...` declaration, or perhaps its type causes a cyclical loading issue)"
+        @type ||= begin
+          if @resolver_class
+            return_type = @return_type_expr || @resolver_class.type_expr
+            if return_type.nil?
+              raise MissingReturnTypeError, "Can't determine the return type for #{self.path} (it has `resolver: #{@resolver_class}`, perhaps that class is missing a `type ...` declaration, or perhaps its type causes a cyclical loading issue)"
+            end
+            nullable = @return_type_null.nil? ? @resolver_class.null : @return_type_null
+            Member::BuildType.parse_type(return_type, null: nullable)
+          else
+            Member::BuildType.parse_type(@return_type_expr, null: @return_type_null)
           end
-          nullable = @return_type_null.nil? ? @resolver_class.null : @return_type_null
-          Member::BuildType.parse_type(return_type, null: nullable)
-        else
-          @type ||= Member::BuildType.parse_type(@return_type_expr, null: @return_type_null)
         end
       rescue GraphQL::Schema::InvalidDocumentError, MissingReturnTypeError => err
         # Let this propagate up
@@ -641,6 +655,8 @@ module GraphQL
       # @param args [Hash] A symbol-keyed hash of Ruby keyword arguments. (Empty if no args)
       # @param ctx [GraphQL::Query::Context]
       def resolve(object, args, query_ctx)
+        finish_initialize unless @call_after_define
+
         # Unwrap the GraphQL object to get the application object.
         application_object = object.object
         method_receiver = nil
