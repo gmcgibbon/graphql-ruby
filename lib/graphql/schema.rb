@@ -872,7 +872,7 @@ module GraphQL
               To add other types to your schema, you might want `extra_types`: https://graphql-ruby.org/schema/definition.html#extra-types
             ERR
           end
-          add_type_and_traverse(new_orphan_types, root: false)
+          add_type_and_traverse(new_orphan_types)
           own_orphan_types.concat(new_orphan_types.flatten)
         end
 
@@ -1127,7 +1127,7 @@ module GraphQL
       # @param new_directive [Class]
       # @return void
       def directive(new_directive)
-        add_type_and_traverse(new_directive, root: false)
+        add_type_and_traverse(new_directive)
       end
 
       def default_directives
@@ -1389,23 +1389,15 @@ module GraphQL
         end
       end
 
-      private
-
-      def add_trace_options_for(mode, new_options)
-        t_opts = trace_options_for(mode)
-        t_opts.merge!(new_options)
-        nil
-      end
-
       # @param t [Module, Array<Module>]
       # @return [void]
-      def add_type_and_traverse(t, root:)
+      def add_type_and_traverse(t, root: false)
         if root
           @root_types ||= []
           @root_types << t
         end
         new_types = Array(t)
-        addition = Schema::Addition.new(schema: self, own_types: own_types, new_types: new_types)
+        addition = Schema::ShallowAddition.new(schema: self, own_types: own_types, new_types: new_types)
         addition.types.each do |name, types_entry| # rubocop:disable Development/ContextIsPassedCop -- build-time, not query-time
           if (prev_entry = own_types[name])
             prev_entries = case prev_entry
@@ -1448,6 +1440,14 @@ module GraphQL
         addition.arguments_with_default_values.each do |arg|
           arg.validate_default_value
         end
+      end
+
+      private
+
+      def add_trace_options_for(mode, new_options)
+        t_opts = trace_options_for(mode)
+        t_opts.merge!(new_options)
+        nil
       end
 
       def lazy_methods

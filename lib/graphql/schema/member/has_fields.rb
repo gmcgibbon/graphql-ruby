@@ -136,11 +136,15 @@ module GraphQL
             ancs = ancestors
             i = 0
             while (ancestor = ancs[i])
-              if ancestor.respond_to?(:own_fields) &&
-                  visible_interface_implementation?(ancestor, context, warden) &&
+              if ancestor.respond_to?(:own_fields)
+                if (field = ancestor.own_fields[field_name])
+                  context.schema.add_type_and_traverse(field.type.unwrap)
+                end
+                if visible_interface_implementation?(ancestor, context, warden) &&
                   (f_entry = ancestor.own_fields[field_name]) &&
                   (f = Warden.visible_entry?(:visible_field?, f_entry, context, warden))
-                return f
+                  return f
+                end
               end
               i += 1
             end

@@ -284,7 +284,7 @@ module GraphQL
       private
 
       def visible_and_reachable_type?(type_defn)
-        @visible_and_reachable_type ||= read_through do |type_defn|
+        read_through do |type_defn|
           next false unless visible_type?(type_defn)
           next true if root_type?(type_defn) || type_defn.introspection?
 
@@ -310,9 +310,7 @@ module GraphQL
               false
             end
           end
-        end
-
-        @visible_and_reachable_type[type_defn]
+        end[type_defn]
       end
 
       def union_memberships(obj_type)
