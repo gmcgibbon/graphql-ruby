@@ -537,7 +537,8 @@ describe GraphQL::Schema::Argument do
 
 
       err2 = assert_raises GraphQL::Schema::Argument::InvalidDefaultValueError do
-        GraphQL::Schema.from_definition(directive_schema_str)
+        schema = GraphQL::Schema.from_definition(directive_schema_str)
+        schema.to_definition
       end
       expected_message = "`@localize.lang` has an invalid default value: `\"ZH\"` isn't accepted by `Language`; update the default value or the argument type."
       assert_equal expected_message, err2.message

@@ -2,7 +2,9 @@
 
 <% module_namespacing_when_supported do -%>
 class <%= schema_name %> < GraphQL::Schema
-  query(Types::QueryType)
+  if Rails.env.development?
+    load_types_as_needed # for faster application boot
+  end
 <% if options[:batch] %>
   # GraphQL::Batch setup:
   use GraphQL::Batch

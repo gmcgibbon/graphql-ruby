@@ -16,11 +16,11 @@ module Graphql
 
       def insert_root_type(type, name)
         log :add_root_type, type
-        sentinel = /< GraphQL::Schema\s*\n/m
+        sentinel = "load_types_as_needed # for faster application boot\n  end\n"
 
         in_root do
           if File.exist?(schema_file_path)
-            inject_into_file schema_file_path, "  #{type}(Types::#{name})\n", after: sentinel, verbose: false, force: false
+            inject_into_file schema_file_path, "  #{type}(\"Types::#{name}\")\n", after: sentinel, verbose: false, force: false
           end
         end
       end

@@ -295,14 +295,16 @@ module Dummy
   class FetchItem < GraphQL::Schema::Resolver
     class << self
       attr_accessor :data
-    end
 
-    def self.build(type:, data:, id_type: "Int")
-      Class.new(self) do
-        self.data = data
-        type(type, null: true)
-        description("Find a #{type.name} by id")
-        argument :id, id_type
+      def build(type:, data:, id_type: "Int")
+        resolver = Class.new(self) do
+          self.data = data
+          type(type, null: true)
+          description("Find a #{type.name} by id")
+          argument :id, id_type
+        end
+        FetchItem.const_set("Fetch#{type.graphql_name}", resolver)
+        resolver
       end
     end
 
@@ -319,11 +321,13 @@ module Dummy
     end
 
     def self.build(type:, data:)
-      Class.new(self) do
+      resolver = Class.new(self) do
         description("Find the only #{type.name}")
         type(type, null: true)
         self.data = data
       end
+      self.const_set("Get#{type.graphql_name}", resolver)
+      resolver
     end
 
     def resolve
@@ -515,11 +519,11 @@ module Dummy
   end
 
   class Schema < GraphQL::Schema
-    query DairyAppQuery
+    query "Dummy::DairyAppQuery"
     mutation DairyAppMutation
     subscription Subscription
     max_depth 5
-    orphan_types Honey
+    orphan_types "Dummy::Honey"
     trace_with GraphQL::Tracing::CallLegacyTracers
 
     rescue_from(NoSuchDairyError) { |err| raise GraphQL::ExecutionError, err.message  }

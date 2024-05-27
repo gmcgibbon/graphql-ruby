@@ -174,6 +174,7 @@ module GraphQL
           else
             @object_types.last
           end
+
           push_type(object_type)
           yield(node)
           @object_types.pop
