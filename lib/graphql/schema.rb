@@ -1464,6 +1464,8 @@ module GraphQL
         if query
           if query.is_a?(String)
             @query_object = query = Object.const_get(query)
+          elsif query.is_a?(Proc)
+            @query_object = query = query.call
           end
           @root_types << query
           new_types << query
@@ -1472,6 +1474,8 @@ module GraphQL
         if mutation
           if mutation.is_a?(String)
             @mutation_object = mutation = Object.const_get(mutation)
+          elsif mutation.is_a?(Proc)
+            @mutation_object = mutation = mutation.call
           end
           @root_types << mutation
           new_types << mutation
@@ -1480,6 +1484,8 @@ module GraphQL
         if subscription
           if subscription.is_a?(String)
             @subscription_object = subscription = Object.const_get(subscription)
+          elsif subscription.is_a?(Proc)
+            @subscription_object = subscription = subscription.call
           end
           @root_types << subscription
           new_types << subscription
