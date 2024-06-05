@@ -339,7 +339,7 @@ module GraphQL
       # @return [Hash<String => Class>] A dictionary of type classes by their GraphQL name
       # @see get_type Which is more efficient for finding _one type_ by name, because it doesn't merge hashes.
       def types(context = GraphQL::Query::NullContext.instance)
-        eager_load_types if load_types_as_needed?
+        eager_load_types(context) if load_types_as_needed?
         all_types = non_introspection_types.merge(introspection_system.types)
         visible_types = {}
         all_types.each do |k, v|
@@ -364,19 +364,37 @@ module GraphQL
         visible_types
       end
 
-      def eager_load_types
-        if !@loaded_all_types
-          @loaded_all_types = true
-          return if self == GraphQL::Schema
+      def eager_load_types(context = GraphQL::Query::NullContext.instance)
+        return if self == GraphQL::Schema
 
+        if !@loaded_orphan_types
           load_defered_orphan_types
           non_roots = orphan_types + directives.values
-          add_types_and_traverse(query: query, mutation: mutation, subscription: subscription, types: non_roots)
+          add_types_and_traverse(types: non_roots)
+          @loaded_orphan_types = true
+        end
+
+        if context.query.query? && !@loaded_query_types
+          add_types_and_traverse(query: query)
+          @loaded_query_types = true
+        end
+
+        if context.query.mutation? && !@loaded_mutation_types
+          add_types_and_traverse(mutation: mutation)
+          @loaded_mutation_types = true
+        end
+
+        if context.query.subscription? && !@loaded_subscription_types
+          add_types_and_traverse(subscription: subscription)
+          @loaded_subscription_types = true
         end
       end
 
       def unload_types
-        @loaded_all_types = false
+        @loaded_orphan_types = false
+        @loaded_query_types = false
+        @loaded_mutation_types = false
+        @loaded_subscription_types = false
         @root_types.clear
         @own_types.clear
         @own_possible_types.clear
@@ -388,7 +406,7 @@ module GraphQL
       # @param type_name [String]
       # @return [Module, nil] A type, or nil if there's no type called `type_name`
       def get_type(type_name, context = GraphQL::Query::NullContext.instance)
-        eager_load_types if load_types_as_needed?
+        eager_load_types(context) if load_types_as_needed?
         local_entry = own_types[type_name]
         type_defn = case local_entry
         when nil
@@ -532,7 +550,7 @@ module GraphQL
       # @return [Array<Module>] Possible types for `type`, if it's given.
       def possible_types(type = nil, context = GraphQL::Query::NullContext.instance)
         if type
-          eager_load_types if load_types_as_needed?
+          eager_load_types(context) if load_types_as_needed?
           # TODO duck-typing `.possible_types` would probably be nicer here
           if type.kind.union?
             type.possible_types(context: context)
