@@ -289,7 +289,6 @@ module GraphQL
       # @param context [Hash]
       # @return [String]
       def to_definition(context: {})
-        eager_load_types if load_types_as_needed?
         GraphQL::Schema::Printer.print_schema(self, context: context)
       end
 
@@ -339,7 +338,6 @@ module GraphQL
       # @return [Hash<String => Class>] A dictionary of type classes by their GraphQL name
       # @see get_type Which is more efficient for finding _one type_ by name, because it doesn't merge hashes.
       def types(context = GraphQL::Query::NullContext.instance)
-        eager_load_types(context) if load_types_as_needed?
         all_types = non_introspection_types.merge(introspection_system.types)
         visible_types = {}
         all_types.each do |k, v|
@@ -364,28 +362,28 @@ module GraphQL
         visible_types
       end
 
-      def eager_load_types(context = GraphQL::Query::NullContext.instance)
+      def eager_load_types(query: false, mutation: false, subscription: false)
         return if self == GraphQL::Schema
 
         if !@loaded_orphan_types
           load_defered_orphan_types
           non_roots = orphan_types + directives.values
-          add_types_and_traverse(types: non_roots)
+          add_types_and_traverse(non_roots)
           @loaded_orphan_types = true
         end
 
-        if context.query.query? && !@loaded_query_types
-          add_types_and_traverse(query: query)
+        if query && !@loaded_query_types
+          add_types_and_traverse(self.query, root: true)
           @loaded_query_types = true
         end
 
-        if context.query.mutation? && !@loaded_mutation_types
-          add_types_and_traverse(mutation: mutation)
+        if mutation && !@loaded_mutation_types
+          add_types_and_traverse(self.mutation, root: true)
           @loaded_mutation_types = true
         end
 
-        if context.query.subscription? && !@loaded_subscription_types
-          add_types_and_traverse(subscription: subscription)
+        if subscription && !@loaded_subscription_types
+          add_types_and_traverse(self.subscription, root: true)
           @loaded_subscription_types = true
         end
       end
@@ -406,7 +404,6 @@ module GraphQL
       # @param type_name [String]
       # @return [Module, nil] A type, or nil if there's no type called `type_name`
       def get_type(type_name, context = GraphQL::Query::NullContext.instance)
-        eager_load_types(context) if load_types_as_needed?
         local_entry = own_types[type_name]
         type_defn = case local_entry
         when nil
@@ -472,12 +469,22 @@ module GraphQL
           else
             @query_object = new_query_object
             if !load_types_as_needed?
-              add_types_and_traverse(query: new_query_object)
+              add_types_and_traverse(new_query_object, root: true)
             end
             nil
           end
         else
-          @query_object || find_inherited_value(:query)
+          query = @query_object || find_inherited_value(:query)
+
+          if query.is_a?(String)
+            @query_object = query = Object.const_get(query)
+            eager_load_types(query: true)
+          elsif query.is_a?(Proc)
+            @query_object = query = query.call
+            eager_load_types(query: true)
+          end
+
+          @query_object
         end
       end
 
@@ -488,12 +495,22 @@ module GraphQL
           else
             @mutation_object = new_mutation_object
             if !load_types_as_needed?
-              add_types_and_traverse(mutation: new_mutation_object)
+              add_types_and_traverse(new_mutation_object, root: true)
             end
             nil
           end
         else
-          @mutation_object || find_inherited_value(:mutation)
+          mutation = @mutation_object || find_inherited_value(:mutation)
+
+          if mutation.is_a?(String)
+            @mutation_object = mutation = Object.const_get(mutation)
+            eager_load_types(mutation: true)
+          elsif mutation.is_a?(Proc)
+            @mutation_object = mutation = mutation.call
+            eager_load_types(mutation: true)
+          end
+
+          @mutation_object
         end
       end
 
@@ -504,13 +521,23 @@ module GraphQL
           else
             @subscription_object = new_subscription_object
             if !load_types_as_needed?
-              add_types_and_traverse(subscription: new_subscription_object)
+              add_types_and_traverse(new_subscription_object, root: true)
             end
             add_subscription_extension_if_necessary
             nil
           end
         else
-          @subscription_object || find_inherited_value(:subscription)
+          subscription = @subscription_object || find_inherited_value(:subscription)
+
+          if subscription.is_a?(String)
+            @subscription_object = subscription = Object.const_get(subscription)
+            eager_load_types(subscription: true)
+          elsif subscription.is_a?(Proc)
+            @subscription_object = subscription = subscription.call
+            eager_load_types(subscription: true)
+          end
+
+          @subscription_object
         end
       end
 
@@ -550,7 +577,6 @@ module GraphQL
       # @return [Array<Module>] Possible types for `type`, if it's given.
       def possible_types(type = nil, context = GraphQL::Query::NullContext.instance)
         if type
-          eager_load_types(context) if load_types_as_needed?
           # TODO duck-typing `.possible_types` would probably be nicer here
           if type.kind.union?
             type.possible_types(context: context)
@@ -604,7 +630,6 @@ module GraphQL
       def references_to(to_type = nil, from: nil)
         if !defined?(@own_references_to)
           @own_references_to = {}.tap(&:compare_by_identity)
-          eager_load_types if load_types_as_needed?
         end
         if to_type
           if from
@@ -933,7 +958,7 @@ module GraphQL
           own_orphan_types.concat(new_orphan_types.flatten)
           if !load_types_as_needed?
             new_orphan_types = load_defered_orphan_types(new_orphan_types)
-            add_types_and_traverse(types: new_orphan_types)
+            add_types_and_traverse(new_orphan_types)
           end
         end
 
@@ -1190,7 +1215,7 @@ module GraphQL
       def directive(new_directive)
         own_directives[new_directive.graphql_name] = new_directive
         if !load_types_as_needed?
-          add_types_and_traverse(types: [new_directive])
+          add_types_and_traverse(new_directive)
         end
         nil
       end
@@ -1491,41 +1516,12 @@ module GraphQL
 
       # @param t [Module, Array<Module>]
       # @return [void]
-      def add_types_and_traverse(query: nil, mutation: nil, subscription: nil, types: EmptyObjects::EMPTY_ARRAY)
-        @root_types ||= []
-        new_types = []
-
-        if query
-          if query.is_a?(String)
-            @query_object = query = Object.const_get(query)
-          elsif query.is_a?(Proc)
-            @query_object = query = query.call
-          end
-          @root_types << query
-          new_types << query
+      def add_types_and_traverse(type, root: false)
+        if root
+          @root_types ||= []
+          @root_types << type
         end
-
-        if mutation
-          if mutation.is_a?(String)
-            @mutation_object = mutation = Object.const_get(mutation)
-          elsif mutation.is_a?(Proc)
-            @mutation_object = mutation = mutation.call
-          end
-          @root_types << mutation
-          new_types << mutation
-        end
-
-        if subscription
-          if subscription.is_a?(String)
-            @subscription_object = subscription = Object.const_get(subscription)
-          elsif subscription.is_a?(Proc)
-            @subscription_object = subscription = subscription.call
-          end
-          @root_types << subscription
-          new_types << subscription
-        end
-
-        new_types.concat(types)
+        new_types = Array(type)
 
         addition = Schema::Addition.new(schema: self, own_types: own_types, new_types: new_types)
         addition.types.each do |name, types_entry| # rubocop:disable Development/ContextIsPassedCop -- build-time, not query-time
@@ -1645,15 +1641,15 @@ module GraphQL
       end
 
       # This is overridden in subclasses to check the inheritance chain
-      def get_references_to(type_defn)
-        @own_references_to[type_defn]
+      def get_references_to(type_name)
+        @own_references_to[type_name]
       end
     end
 
     module SubclassGetReferencesTo
-      def get_references_to(type_defn)
-        own_refs = @own_references_to[type_defn]
-        inherited_refs = superclass.references_to(type_defn)
+      def get_references_to(type_name)
+        own_refs = @own_references_to[type_name]
+        inherited_refs = superclass.references_to(type_name)
         if inherited_refs&.any?
           if own_refs&.any?
             own_refs + inherited_refs

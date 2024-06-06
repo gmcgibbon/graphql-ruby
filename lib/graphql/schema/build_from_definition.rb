@@ -130,12 +130,11 @@ module GraphQL
           schema_class = Class.new(schema_superclass) do
             begin
               # Add these first so that there's some chance of resolving late-bound types
-              add_types_and_traverse(types: found_types)
+              add_types_and_traverse(found_types)
               orphan_types(found_types.select { |t| t.respond_to?(:kind) && t.kind.object? })
               query query_root_type
               mutation mutation_root_type
               subscription subscription_root_type
-              add_types_and_traverse(query: query_root_type, mutation: mutation_root_type, subscription: subscription_root_type)
             rescue Schema::UnresolvedLateBoundTypeError  => err
               type_name = err.type.name
               err_backtrace =  err.backtrace
@@ -154,7 +153,7 @@ module GraphQL
 
             dirs = directives.values
             directives(dirs)
-            add_types_and_traverse(types: dirs)
+            add_types_and_traverse(dirs)
 
             if schema_definition
               ast_node(schema_definition)
