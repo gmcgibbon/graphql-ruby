@@ -95,10 +95,6 @@ module GraphQL
       # @param schema [GraphQL::Schema]
       def initialize(context:, schema:)
         @schema = schema
-        # Cache these to avoid repeated hits to the inheritance chain when one isn't present
-        @query = @schema.query
-        @mutation = @schema.mutation
-        @subscription = @schema.subscription
         @context = context
         @visibility_cache = read_through { |m| schema.visible?(m, context) }
         @visibility_cache.compare_by_identity
@@ -283,6 +279,18 @@ module GraphQL
 
       private
 
+      def query
+        @query ||= @schema.query
+      end
+
+      def mutation
+        @mutation ||= @schema.mutation
+      end
+
+      def subscription
+        @subscription ||= @schema.subscription
+      end
+
       def visible_and_reachable_type?(type_defn)
         @visible_and_reachable_type ||= read_through do |type_defn|
           next false unless visible_type?(type_defn)
@@ -356,9 +364,9 @@ module GraphQL
       end
 
       def root_type?(type_defn)
-        @query == type_defn ||
-          @mutation == type_defn ||
-          @subscription == type_defn
+        query == type_defn ||
+          mutation == type_defn ||
+          subscription == type_defn
       end
 
       def referenced?(type_defn)
